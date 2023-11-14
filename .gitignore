@@ -1,0 +1,8 @@
+/WirelessSensorNetwork/*
+WirelessSensorNetwork.sln
+x64
+.vs/
+.vs
+
+!/WirelessSensorNetwork/*.cpp
+!/WirelessSensorNetwork/*.h
