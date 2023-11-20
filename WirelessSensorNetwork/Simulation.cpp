@@ -4,6 +4,7 @@
 
 namespace WSN
 {
+
 	static std::string SimulationIntervalToJsonString(SimulationInterval si, long long pid)
 	{
 		std::string name;
@@ -73,7 +74,7 @@ namespace WSN
 		std::cout << "Weibull K = " << m_WeibullParams.Shape << ", Weibull Lambda = " << m_WeibullParams.Scale
 			<< ", Gamma K = " << m_GammaParams.Shape << ", Gamma Theta = " << m_GammaParams.Scale
 			<< ", Lognormal Mu = " << m_LognormalParams.M << ", Lognormal Sigma = " << m_LognormalParams.S
-			<< '\n';
+			<< "\n\n";
 		m_Weibull = Distribution<std::weibull_distribution<double>>(m_WeibullParams.Shape, m_WeibullParams.Scale);
 		m_Gamma = Distribution<std::gamma_distribution<double>>(m_GammaParams.Shape, m_GammaParams.Scale);
 		m_Lognormal = Distribution<std::lognormal_distribution<double>>(m_LognormalParams.M, m_LognormalParams.S);
@@ -87,12 +88,18 @@ namespace WSN
 
 		m_Random = std::mt19937_64(std::chrono::high_resolution_clock::now().time_since_epoch().count());
 
-		std::cout << "Weibull : ";
-		m_Weibull.GenerateFailures(m_Random, 100 * totalDurationToBeTransferred, "WeibullM" + std::to_string(mean) + "STD" + std::to_string(stddev));
-		std::cout << "Gamma : ";
-		m_Gamma.GenerateFailures(m_Random, 100 * totalDurationToBeTransferred, "Gamma" + std::to_string(mean) + "STD" + std::to_string(stddev));
-		std::cout << "Lognormal : ";
-		m_Lognormal.GenerateFailures(m_Random, 100 * totalDurationToBeTransferred, "Lognormal" + std::to_string(mean) + "STD" + std::to_string(stddev));
+		"Results/Redo" + std::to_string(m_SummaryData.RedoCount) + "/SimulationM" + std::to_string(m_SummaryData.Mean) + 'S' + std::to_string(m_SummaryData.StdDev)
+			+ "DUR" + std::to_string(m_SummaryData.TotalDurationToBeTransferred) + 'T' + std::to_string(m_SummaryData.TransferTime) + 'R' + std::to_string(m_SummaryData.RecoveryTime) + ".csv";
+
+
+		static constexpr double failGenerationDurationMultiplier = 100.0;
+
+		// std::cout << "Weibull : ";
+		m_Weibull.GenerateFailures(m_Random, failGenerationDurationMultiplier * totalDurationToBeTransferred);
+		// std::cout << "Gamma : ";
+		m_Gamma.GenerateFailures(m_Random, failGenerationDurationMultiplier * totalDurationToBeTransferred);
+		// std::cout << "Lognormal : ";
+		m_Lognormal.GenerateFailures(m_Random, failGenerationDurationMultiplier * totalDurationToBeTransferred);
 	}
 
 
@@ -107,7 +114,6 @@ namespace WSN
 		long long nextFailureTime = distribution.m_FailurePoints[0];
 		long long failureIterator = 0;
 		bool failed = false;
-		bool finishFailures = false;
 		long long transferredTotalDuration = 0;
 
 		State currentState = State::Collection;
@@ -117,20 +123,18 @@ namespace WSN
 			if (failed)
 			{
 				failureIterator++;
-				if (failureIterator >= distribution.m_FailurePoints.size())
-					finishFailures = true;
-				else
+				if (failureIterator < distribution.m_FailurePoints.size())
 					nextFailureTime = distribution.m_FailurePoints[failureIterator];
+				else
+					throw std::runtime_error("Exceeded the last failure point!");;
 
-				//to break
-				nextFailureTime = distribution.m_FailurePoints[failureIterator];
 				failed = false;
 			}
 
 			if (currentState == State::Collection)
 			{
 				long long nextTime = currentTime + m_SummaryData.DeltaOpt;
-				if (nextTime > nextFailureTime && !finishFailures)
+				if (nextTime > nextFailureTime)
 				{
 					failed = true;
 					simulationData.SimulationIntervals.push_back({ State::Collection, currentTime, nextFailureTime });
@@ -149,7 +153,7 @@ namespace WSN
 			else if (currentState == State::Transfer)
 			{
 				long long nextTime = currentTime + m_SummaryData.TransferTime;
-				if (nextTime > nextFailureTime && !finishFailures)
+				if (nextTime > nextFailureTime)
 				{
 					failed = true;
 					simulationData.SimulationIntervals.push_back({ State::Transfer, currentTime, nextFailureTime });
@@ -172,7 +176,7 @@ namespace WSN
 			else
 			{
 				long long nextTime = currentTime + m_SummaryData.RecoveryTime;
-				if (nextTime > nextFailureTime && !finishFailures)
+				if (nextTime > nextFailureTime)
 				{
 					failed = true;
 					simulationData.SimulationIntervals.push_back({ State::Recovery, currentTime, nextFailureTime });
@@ -308,10 +312,7 @@ namespace WSN
 					if (failureIterator < distribution.m_FailurePoints.size())
 						nextFailureTime = distribution.m_FailurePoints[failureIterator];
 					else
-					{
-						// to break
 						throw std::runtime_error("Exceeded the last failure point!");
-					}
 
 
 					
@@ -554,17 +555,32 @@ namespace WSN
 			}
 		}
 
-		std::vector<std::vector<double>> averages(datas[0].size(), std::vector<double>(datas[0][0].size()));
+
+		// DANGER ZONE !
+		// 33rd index column = redo
+		std::vector<std::vector<std::string>> averages(datas[0].size(), std::vector<std::string>(datas[0][0].size()));
 
 		for (int i = 0; i < datas[0].size(); i++)
 		{
 			for (int j = 0; j < datas[0][0].size(); j++)
 			{
-				double average = 0.0;
-				for (int k = 0; k < datas.size(); k++)
-					average += datas[k][i][j] / datas.size();
+				if (j < 33)
+				{
+					double average = 0.0;
+					for (int k = 0; k < datas.size(); k++)
+						average += datas[k][i][j] / datas.size();
 
-				averages[i][j] = average;
+					averages[i][j] = std::to_string(average);
+				}
+				else if (j == 33)
+					averages[i][j] = std::to_string(redoStart) + "-" + std::to_string(redoEnd);
+				else if (j < 37)
+					averages[i][j] = std::to_string((std::stod(averages[i][5]) - std::stod(averages[i][j - 28])) / std::stod(averages[i][j - 28]));
+				else if (j < 40)
+					averages[i][j] = std::to_string((std::stod(averages[i][j - 28]) - std::stod(averages[i][j - 25])) / std::stod(averages[i][j - 25]));
+				else if (j < 43)
+					averages[i][j] = std::to_string((std::stod(averages[i][j - 25]) - std::stod(averages[i][j - 22])) / std::stod(averages[i][j - 22]));
+
 			}
 		}
 
@@ -573,15 +589,15 @@ namespace WSN
 		ostream << "Mean,Standard Deviation,Total Duration To Be Transferred,Transfer Time,Recovery Time,Delta Optimal,Delta Star Weibull,Delta Star Gamma,Delta Star Lognormal,"
 			"Collection Time Weibull,Collection Time Gamma,Collection Time Lognormal,"
 			"Collection Time Star Weibull,Collection Time Star Gamma,Collection Time Star Lognormal,"
-			"Wasted Time Weibull,Wasted Time Gamma,Wasted Time Lognormal," //
-			"Wasted Time Star Weibull,Wasted Time Star Gamma,Wasted Time Star Lognormal," //
+			"Wasted Time Weibull,Wasted Time Gamma,Wasted Time Lognormal," 
+			"Wasted Time Star Weibull,Wasted Time Star Gamma,Wasted Time Star Lognormal," 
 			"Actual Total Duration Weibull,Actual Total Duration Gamma,Actual Total Duration Lognormal,"
 			"Actual Total Duration Star Weibull,Actual Total Duration Star Gamma,Actual Total Duration Star Lognormal,"
 			"Total Number Of Failures Weibull,Total Number Of Failures Gamma, Total Number Of Failures Lognormal,"
 			"Total Number Of Failures Star Weibull,Total Number Of Failures Star Gamma, Total Number Of Failures Star Lognormal,"
 			"Redo,Diff Delta Weibull,Diff Delta Gamma,Diff Delta Lognormal,"
 			"Diff CT Weibull,Diff CT Gamma,Diff CT Lognormal,"
-			"Diff WT Weibull,Diff WT Gamma,Diff WT Lognormal\n"; //;
+			"Diff WT Weibull,Diff WT Gamma,Diff WT Lognormal\n";
 
 		for (int i = 0; i < averages.size(); i++)
 		{
@@ -602,10 +618,9 @@ namespace WSN
 
 
 	template<typename T>
-	void Distribution<T>::GenerateFailures(std::mt19937_64& random, long long totalDurationToBeTransferred, std::string distname)
+	void Distribution<T>::GenerateFailures(std::mt19937_64& random, long long totalDurationToBeTransferred)
 	{
 		long long currentFailure = 0;
-		m_Name = distname;
 		
 		while (currentFailure < totalDurationToBeTransferred)
 		{
@@ -617,10 +632,6 @@ namespace WSN
 			currentFailure += currentFailureInterval;
 			m_FailurePoints.push_back(currentFailure);
 		}
-
-
-
-	
 
 
 #if 0
@@ -655,9 +666,9 @@ namespace WSN
 	}
 
 	template<typename T>
-	void Distribution<T>::LogCDF(long long finalFailure, bool star)
+	std::map<long long, long long> Distribution<T>::GetCDF(long long finalFailure)
 	{
-		std::cout << "FinalFail = " << finalFailure << ", Size = " << m_Intervals.size() << '\n';
+		//std::cout << "FinalFail = " << finalFailure << ", Size = " << m_Intervals.size() << '\n';
 		std::vector<long long> tempIntervals(m_Intervals.begin(), m_Intervals.begin() + finalFailure);
 
 		std::sort(tempIntervals.begin(), tempIntervals.end());
@@ -668,9 +679,6 @@ namespace WSN
 		{
 
 			long long currentInterval = tempIntervals[i];
-
-			if (currentInterval == 0)
-				throw std::runtime_error("How is this 0");
 
 			int count = 1;
 			while (i + 1 < tempIntervals.size() && tempIntervals[i + 1] == currentInterval)
@@ -683,35 +691,78 @@ namespace WSN
 
 		}
 
-		std::string path;
-		if (star)
-			path = "Results/" + m_Name + "StarValidation.csv";
-		else
-			path = "Results/" + m_Name + "Validation.csv";
-		std::ofstream valstream(path);
-
-		long long prevInterval = -1;
-		double prevCD = 0;
-		for (auto it = hist.begin(); it != hist.end(); it++)
-		{
-			long long currentInterval = it->first;
-			for (long long i = prevInterval + 1; i < currentInterval; i++)
-				valstream << i << ',' << prevCD << '\n';
-			prevCD = it->second / (double)tempIntervals.size();
-			prevInterval = it->first;
-			valstream << it->first << ',' << it->second / (double)tempIntervals.size() << '\n';
-		}
-		valstream << tempIntervals.size();
+		return hist;
 	}
 
 	void Simulation::LogCDF()
 	{
-		m_Weibull.LogCDF(m_SummaryData.FinalFailureIndexWeibull, false);
-		m_Weibull.LogCDF(m_SummaryData.FinalFailureIndexStarWeibull, true);
-		m_Gamma.LogCDF(m_SummaryData.FinalFailureIndexGamma, false);
-		m_Gamma.LogCDF(m_SummaryData.FinalFailureIndexStarGamma, true);
-		m_Lognormal.LogCDF(m_SummaryData.FinalFailureIndexLognormal, false);
-		m_Lognormal.LogCDF(m_SummaryData.FinalFailureIndexStarLognormal, true);
+		std::string temp = "Results/Redo" + std::to_string(m_SummaryData.RedoCount) + "/";
+		std::string temp2 = "M" + std::to_string(m_SummaryData.Mean) + 'S' + std::to_string(m_SummaryData.StdDev)
+			+ "DUR" + std::to_string(m_SummaryData.TotalDurationToBeTransferred) + 'T' + std::to_string(m_SummaryData.TransferTime) + 'R' + std::to_string(m_SummaryData.RecoveryTime) + "CDF.csv";
+
+		{
+
+			std::map<long long, long long> weibull = m_Weibull.GetCDF(m_SummaryData.FinalFailureIndexWeibull);
+			std::map<long long, long long> gamma = m_Gamma.GetCDF(m_SummaryData.FinalFailureIndexGamma);
+			std::map<long long, long long> lognormal = m_Lognormal.GetCDF(m_SummaryData.FinalFailureIndexLognormal);
+
+			long long biggest = std::max(std::max((--weibull.end())->first, (--gamma.end())->first), (--lognormal.end())->first);
+			long long prevInterval = -1;
+			double prevCDWeibull = 0;
+			double prevCDGamma = 0;
+			double prevCDLognormal = 0;
+
+			std::ofstream CDFstream(temp + "Simulation" + temp2);
+
+			CDFstream << "Weibull,,,,Gamma,,,,Lognormal\n\n";
+			CDFstream << "Failure Count," << m_SummaryData.FinalFailureIndexWeibull << ",,,Failure Count," << m_SummaryData.FinalFailureIndexGamma << ",,,Failure Count," << m_SummaryData.FinalFailureIndexLognormal << "\n\n";
+
+			for (int i = 0; i <= biggest; i++)
+			{
+				if (weibull.find(i) != weibull.end())
+					prevCDWeibull = weibull[i] / (double)m_SummaryData.FinalFailureIndexWeibull;
+				if (gamma.find(i) != gamma.end())
+					prevCDGamma = gamma[i] / (double)m_SummaryData.FinalFailureIndexGamma;
+				if (lognormal.find(i) != lognormal.end())
+					prevCDLognormal = lognormal[i] / (double)m_SummaryData.FinalFailureIndexLognormal;
+
+				CDFstream << i << ',' << prevCDWeibull << ",,," << i << ',' << prevCDGamma << ",,," << i << ',' << prevCDLognormal << '\n';
+
+			}
+		}
+
+		{
+
+			std::map<long long, long long> weibullStar = m_Weibull.GetCDF(m_SummaryData.FinalFailureIndexStarWeibull);
+			std::map<long long, long long> gammaStar = m_Gamma.GetCDF(m_SummaryData.FinalFailureIndexStarGamma);
+			std::map<long long, long long> lognormalStar = m_Lognormal.GetCDF(m_SummaryData.FinalFailureIndexStarLognormal);
+
+			long long biggest = std::max(std::max((--weibullStar.end())->first, (--gammaStar.end())->first), (--lognormalStar.end())->first);
+			long long prevInterval = -1;
+			double prevCDWeibull = 0;
+			double prevCDGamma = 0;
+			double prevCDLognormal = 0;
+
+			std::ofstream CDFstream(temp + "BruteForce" + temp2);
+
+			CDFstream << "Weibull,,,,Gamma,,,,Lognormal\n\n";
+			CDFstream << "Failure Count," << m_SummaryData.FinalFailureIndexStarWeibull << ",,,Failure Count," << m_SummaryData.FinalFailureIndexStarGamma << ",,,Failure Count," << m_SummaryData.FinalFailureIndexStarLognormal << "\n\n";
+
+			for (int i = 0; i <= biggest; i++)
+			{
+				if (weibullStar.find(i) != weibullStar.end())
+					prevCDWeibull = weibullStar[i] / (double)m_SummaryData.FinalFailureIndexStarWeibull;
+				if (gammaStar.find(i) != gammaStar.end())
+					prevCDGamma = gammaStar[i] / (double)m_SummaryData.FinalFailureIndexStarGamma;
+				if (lognormalStar.find(i) != lognormalStar.end())
+					prevCDLognormal = lognormalStar[i] / (double)m_SummaryData.FinalFailureIndexStarLognormal;
+
+				CDFstream << i << ',' << prevCDWeibull << ",,," << i << ',' << prevCDGamma << ",,," << i << ',' << prevCDLognormal << '\n';
+
+			}
+		}
+
+
 	}
 
 }

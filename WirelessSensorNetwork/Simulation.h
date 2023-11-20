@@ -3,6 +3,7 @@
 
 namespace WSN
 {
+
 	enum class State
 	{
 		Collection,
@@ -95,15 +96,14 @@ namespace WSN
 			m_Distribution = T(a, b);
 		}
 
-		void GenerateFailures(std::mt19937_64& random, long long totalDurationToBeTransferred, std::string distname);
+		void GenerateFailures(std::mt19937_64& random, long long totalDurationToBeTransferred);
 
 		T m_Distribution;
 		std::vector<long long> m_FailurePoints;
 		std::vector<long long> m_Intervals;
 
-		std::string m_Name;
 
-		void LogCDF(long long finalFailure, bool star);
+		std::map<long long, long long> GetCDF(long long finalFailure);
 	};
 
 	class Simulation

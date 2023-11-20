@@ -8,10 +8,13 @@ static constexpr int s_TotalDurationToBeTransferred = 3600 * 24 * 90;
 static constexpr int s_TransferTime = 60;
 static constexpr int s_RecoveryTime = 30;
 
+static constexpr int s_RedoFirstIndex = 1;
+static constexpr int s_RedoLastIndex = 1;
+
 int main()
 {
 
-	for (int redo = 100000; redo < 100001; redo++)
+	for (int redo = s_RedoFirstIndex; redo <= s_RedoLastIndex; redo++)
 	{
 		for (int meanMultiplier = 1; meanMultiplier <= 8; meanMultiplier *= 8)
 		{
@@ -37,8 +40,7 @@ int main()
 		}
 	}
 
-	WSN::Simulation::AverageAllRedos(100000, 100000);
-	//throw std::runtime_error("DONE !");
+	WSN::Simulation::AverageAllRedos(s_RedoFirstIndex, s_RedoLastIndex);
 
 	return 0;
 }
