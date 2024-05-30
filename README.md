@@ -3,7 +3,7 @@
 Source code for **Investigating the Impact of Optimal Data Transfer Intervals on Failure-prone Wireless Sensor Networks**, Amrizal et al.
 
 ## 
-The source code is written in C++, made using Microsoft Visual Studio 2022 IDE and compiled with the MSVC C++20 compiler.
+The source code is written in C++, made using Microsoft Visual Studio 2022 IDE and compiled with the MSVC C++20 compiler. This program requires the MySQL Connector/C++ 8.4 to log some results to a MySQL 8.0 database. The connector is not included in this repository, instead, refer to their [Developer Guide](https://dev.mysql.com/doc/connector-cpp/8.4/en/).
 
 The source code is separated into 2 parts. First, the **WirelessSensorNetwork** folder contains the source code for generating the data of *Increase in the Period of Data Loss* and *Differences in Data Transfer Interval*, used in Figure 3. Secondly, the **WirelessSensorNetworkExtend** folder contains the source code for generating the data of *Normalized Data Collection Time* and *Normalized Energy Consumption*, used in Figure 5.
 
