@@ -127,7 +127,7 @@ namespace WSN
 			}
 		};
 
-		auto findColor = [&]() { // i cant name shit
+		auto findColor = [&]() {
 			for (auto& i : node)
 				for (auto j : node)
 					if (getDistance(i, j) <= m_SimulationParameters.InterferenceRange)
